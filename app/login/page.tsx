@@ -1,6 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+
+
+
+import { useState, useEffect, Suspense } from "react"
 import Link from "next/link"
 import { ArrowLeft, Wallet, Loader2 } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -20,7 +23,7 @@ interface PendingRegistration {
   timestamp: string
 }
 
-export default function LoginPage() {
+ function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [checkingUser, setCheckingUser] = useState(false)
   const [isRegistrationFlow, setIsRegistrationFlow] = useState(false)
@@ -362,3 +365,15 @@ export default function LoginPage() {
 }
 
 
+
+
+// Wrap the LoginPage in a Suspense boundary
+export default function LoginPageWithSuspense() {
+  return (
+    <Suspense fallback={<div className="flex justify-center items-center min-h-screen">Loading...</div>}>
+      <LoginPage />
+    </Suspense>
+  )
+}
+
+// ...move your existing LoginPage component code to LoginPageInner.tsx...
