@@ -105,6 +105,7 @@ export default function DashboardPage() {
   const [tokenMap, setTokenMap] = useState<
     Record<string, { logoURI?: string; symbol?: string; name?: string }>
   >({});
+  const [isLoadingTokenList, setIsLoadingTokenList] = useState(true);
 
   // Add user verification state
   const [isUserVerified, setIsUserVerified] = useState(false);
@@ -774,17 +775,113 @@ export default function DashboardPage() {
   }, [publicKey, connected, toast]);
   //spl-tokens
   useEffect(() => {
+    setIsLoadingTokenList(true);
     fetch(TOKEN_LIST_URL)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
       .then((data) => {
         // Map mint address to token info for quick lookup
-        const map: Record<string, (typeof data.tokens)[0]> = {};
-        data.tokens.forEach((token: { address: string }) => {
-          map[token.address] = token;
-        });
+        const map: Record<string, { logoURI?: string; symbol?: string; name?: string }> = {};
+        if (data.tokens && Array.isArray(data.tokens)) {
+          data.tokens.forEach((token: { address: string; logoURI?: string; symbol?: string; name?: string }) => {
+            map[token.address] = {
+              logoURI: token.logoURI,
+              symbol: token.symbol,
+              name: token.name
+            };
+          });
+        }
         setTokenMap(map);
+        console.log(`Loaded ${Object.keys(map).length} tokens from official token list`);
+      })
+      .catch((error) => {
+        console.error('Failed to fetch token list:', error);
+        // Set empty map but don't block the app - fallbacks will handle this
+        setTokenMap({});
+      })
+      .finally(() => {
+        setIsLoadingTokenList(false);
       });
   }, []);
+
+  // Enhanced token logo resolution function
+  const getTokenLogo = (mint: string, symbol?: string): string | null => {
+    // First try to get from official token list
+    const tokenInfo = tokenMap[mint];
+    if (tokenInfo?.logoURI) {
+      return tokenInfo.logoURI;
+    }
+
+    // Fallback to well-known token logos
+    const knownTokenLogos: Record<string, string> = {
+      'So11111111111111111111111111111111111111112': 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png',
+      'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v': 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png',
+      'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB': 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB/logo.svg',
+      // Add more popular tokens
+      'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263': 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263/logo.png', // BONK
+      'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So': 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So/logo.png', // mSOL
+      'J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn': 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn/logo.png', // jitoSOL
+      '7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs': 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs/logo.png', // ETHER
+      'A9mUU4qviSctJVPJdBJWkb28deg915LYJKrzQ19ji3FM': 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/A9mUU4qviSctJVPJdBJWkb28deg915LYJKrzQ19ji3FM/logo.png', // USDCet
+      '9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E': 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E/logo.png', // BTC
+    };
+
+    if (knownTokenLogos[mint]) {
+      return knownTokenLogos[mint];
+    }
+
+    // Try to construct logo URL from mint address (common pattern)
+    const constructedUrl = `https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/${mint}/logo.png`;
+    
+    // Return constructed URL as fallback - the img tag will handle if it doesn't exist
+    return constructedUrl;
+  };
+
+  // Enhanced token metadata resolution
+  const getTokenMetadata = (mint: string) => {
+    // First try official token list
+    const tokenInfo = tokenMap[mint];
+    if (tokenInfo) {
+      return {
+        symbol: tokenInfo.symbol || 'UNKNOWN',
+        name: tokenInfo.name || 'Unknown Token',
+        logoURI: getTokenLogo(mint, tokenInfo.symbol)
+      };
+    }
+
+    // Fallback for well-known tokens
+    const knownTokens: Record<string, { symbol: string; name: string }> = {
+      'So11111111111111111111111111111111111111112': { symbol: 'SOL', name: 'Solana' },
+      'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v': { symbol: 'USDC', name: 'USD Coin' },
+      'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB': { symbol: 'USDT', name: 'Tether USD' },
+      'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263': { symbol: 'BONK', name: 'Bonk' },
+      'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So': { symbol: 'mSOL', name: 'Marinade staked SOL' },
+      'J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn': { symbol: 'jitoSOL', name: 'Jito Staked SOL' },
+      '7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs': { symbol: 'ETH', name: 'Ethereum' },
+      'A9mUU4qviSctJVPJdBJWkb28deg915LYJKrzQ19ji3FM': { symbol: 'USDCet', name: 'USD Coin (Ethereum)' },
+      '9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E': { symbol: 'BTC', name: 'Bitcoin' },
+    };
+
+    const knownToken = knownTokens[mint];
+    if (knownToken) {
+      return {
+        symbol: knownToken.symbol,
+        name: knownToken.name,
+        logoURI: getTokenLogo(mint, knownToken.symbol)
+      };
+    }
+
+    // Ultimate fallback
+    return {
+      symbol: mint.slice(0, 4).toUpperCase(),
+      name: 'Unknown Token',
+      logoURI: getTokenLogo(mint)
+    };
+  };
 
   // Fetch SPL tokens
   useEffect(() => {
@@ -1070,51 +1167,27 @@ export default function DashboardPage() {
 
     // Add SOL as the first token with proper logo from token list or fallback
     if (solBalance !== null) {
-      // Try to get SOL metadata from tokenMap, fallback to local
-      const solMeta = tokenMap['So11111111111111111111111111111111111111112'];
+      const solMetadata = getTokenMetadata('So11111111111111111111111111111111111111112');
       allTokens.push({
         tokenAccount: 'native',
         mint: 'So11111111111111111111111111111111111111112',
         amount: solBalance,
         decimals: 9,
-        symbol: 'SOL',
-        name: 'Solana', 
-        logoURI: solMeta?.logoURI || 
-          'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png'
+        symbol: solMetadata.symbol,
+        name: solMetadata.name,
+        logoURI: solMetadata.logoURI,
       });
     }
 
-    // Add SPL tokens with metadata from official token list
+    // Add SPL tokens with enhanced metadata resolution
     splTokens.forEach(token => {
-      // Get metadata from tokenMap (official Solana token list)
-      const meta = tokenMap[token.mint];
+      const metadata = getTokenMetadata(token.mint);
       
-      let symbol = 'UNKNOWN';
-      let name = 'Unknown Token';
-      let logoURI = null;
-
-      if (meta) {
-        symbol = meta.symbol || 'UNKNOWN';
-        name = meta.name || 'Unknown Token';
-        logoURI = meta.logoURI || null;
-      } else {
-        // Fallback for well-known tokens if not in tokenMap
-        if (token.mint === TOKEN_MINTS.USDT) {
-          symbol = 'USDT';
-          name = 'Tether USD';
-          logoURI = 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB/logo.svg';
-        } else if (token.mint === TOKEN_MINTS.USDC) {
-          symbol = 'USDC';
-          name = 'USD Coin';
-          logoURI = 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png';
-        }
-      }
-
       allTokens.push({
         ...token,
-        symbol,
-        name,
-        logoURI
+        symbol: metadata.symbol,
+        name: metadata.name,
+        logoURI: metadata.logoURI
       });
     });
 
