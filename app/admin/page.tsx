@@ -43,8 +43,32 @@ export default function AdminDashboardPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [dateRange, setDateRange] = useState("today")
 
+  // Transaction interface
+  interface Transaction {
+    id: string
+    transaction_id: string
+    user_id: string
+    wallet_address: string
+    from_amount: number
+    from_currency: string
+    to_amount: number | null
+    to_currency: string | null
+    bank_name: string | null
+    account_number: string | null
+    account_name: string | null
+    exchange_rate: number | null
+    fee: string | null
+    status: string
+    notes: string | null
+    created_at: string
+    updated_at: string | null
+  }
+
   // Real transactions from Supabase
-  const [transactions, setTransactions] = useState([])
+  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [lastTransactionCount, setLastTransactionCount] = useState(0)
+  const [notificationPermission, setNotificationPermission] = useState(false)
+  const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null)
 
   // Stats
   const [stats, setStats] = useState({
@@ -54,15 +78,17 @@ export default function AdminDashboardPage() {
     todayVolume: "₦0",
   })
 
-  // Simple fetch function
+  // Fetch only convert transactions (not swap transactions)
   const fetchTransactions = async () => {
     try {
       setIsLoading(true)
-      console.log('Fetching from Supabase...')
+      console.log('Fetching convert transactions from Supabase...')
       
       const { data, error } = await supabase
         .from('transactions')
         .select('*')
+        .or('to_currency.eq.NGN,to_currency.eq.ngn') // Only convert transactions (to NGN)
+        .order('created_at', { ascending: false })
 
       if (error) {
         console.log('Supabase error:', error)
@@ -73,13 +99,14 @@ export default function AdminDashboardPage() {
         })
         setTransactions([])
       } else {
-        console.log('Fetched transactions:', data)
+        console.log('Fetched convert transactions:', data)
         setTransactions(data || [])
         
-        // Calculate simple stats
-        const pending = (data || []).filter(tx => tx.status === 'pending').length
-        const completed = (data || []).filter(tx => tx.status === 'completed').length
-        const totalVol = (data || []).reduce((sum, tx) => sum + (Number(tx.to_amount) || 0), 0)
+        // Calculate stats for convert transactions only
+        const convertTransactions = data || []
+        const pending = convertTransactions.filter(tx => tx.status === 'pending').length
+        const completed = convertTransactions.filter(tx => tx.status === 'completed').length
+        const totalVol = convertTransactions.reduce((sum, tx) => sum + (Number(tx.to_amount) || 0), 0)
         
         setStats({
           pendingCount: pending,
@@ -88,11 +115,23 @@ export default function AdminDashboardPage() {
           todayVolume: `₦${totalVol.toLocaleString()}`,
         })
         
-        if (data && data.length > 0) {
+        // Check for new transactions and show notification
+        if (convertTransactions.length > lastTransactionCount && lastTransactionCount > 0) {
+          const newTransactionCount = convertTransactions.length - lastTransactionCount
+          showNotification(`New conversion request! ${newTransactionCount} new transaction${newTransactionCount > 1 ? 's' : ''} pending approval.`)
+          
           toast({
-            title: "Success",
-            description: `Loaded ${data.length} transactions`,
+            title: "New Transaction Alert!",
+            description: `${newTransactionCount} new conversion request${newTransactionCount > 1 ? 's' : ''} received`,
+            variant: "default",
           })
+        }
+        
+        setLastTransactionCount(convertTransactions.length)
+        setLastRefreshTime(new Date())
+        
+        if (convertTransactions.length > 0) {
+          console.log(`Loaded ${convertTransactions.length} convert transactions`)
         }
       }
     } catch (err) {
@@ -105,6 +144,28 @@ export default function AdminDashboardPage() {
       setTransactions([])
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  // Request notification permission and show notifications
+  const requestNotificationPermission = async () => {
+    if ('Notification' in window) {
+      const permission = await Notification.requestPermission()
+      setNotificationPermission(permission === 'granted')
+      return permission === 'granted'
+    }
+    return false
+  }
+
+  const showNotification = (message: string) => {
+    if (notificationPermission && 'Notification' in window) {
+      new Notification('MigoX Admin - New Transaction', {
+        body: message,
+        icon: '/favicon.ico',
+        badge: '/favicon.ico',
+        tag: 'new-transaction',
+        requireInteraction: true,
+      })
     }
   }
 
@@ -146,10 +207,89 @@ export default function AdminDashboardPage() {
     return true
   })
 
-  // Fetch on mount
+  // Fetch on mount and request notification permission
   useEffect(() => {
     fetchTransactions()
+    requestNotificationPermission()
   }, [])
+
+  // Auto-refresh every 2 minutes (120,000ms)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      console.log('Auto-refreshing transactions...')
+      fetchTransactions()
+    }, 120000) // 2 minutes
+
+    return () => clearInterval(interval)
+  }, [])
+
+  // Handle transaction approval
+  const handleApproveTransaction = async (transactionId: string) => {
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .update({ 
+          status: 'completed',
+          updated_at: new Date().toISOString()
+        })
+        .eq('transaction_id', transactionId)
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to approve transaction",
+          variant: "destructive",
+        })
+      } else {
+        toast({
+          title: "Success",
+          description: "Transaction approved successfully",
+        })
+        // Refresh transactions to show updated status
+        fetchTransactions()
+      }
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to approve transaction",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Handle transaction rejection
+  const handleRejectTransaction = async (transactionId: string) => {
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .update({ 
+          status: 'rejected',
+          updated_at: new Date().toISOString()
+        })
+        .eq('transaction_id', transactionId)
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to reject transaction",
+          variant: "destructive",
+        })
+      } else {
+        toast({
+          title: "Success",
+          description: "Transaction rejected successfully",
+        })
+        // Refresh transactions to show updated status
+        fetchTransactions()
+      }
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to reject transaction",
+        variant: "destructive",
+      })
+    }
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
@@ -161,6 +301,15 @@ export default function AdminDashboardPage() {
             </Link>
           </div>
           <nav className="flex items-center gap-4">
+            {!notificationPermission && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={requestNotificationPermission}
+              >
+                Enable Notifications
+              </Button>
+            )}
             <NotificationsPopover />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -212,6 +361,11 @@ export default function AdminDashboardPage() {
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Refresh Data
               </Button>
+              {lastRefreshTime && (
+                <div className="text-sm text-muted-foreground flex items-center">
+                  Last updated: {lastRefreshTime.toLocaleTimeString()}
+                </div>
+              )}
             </div>
           </div>
 
@@ -314,6 +468,8 @@ export default function AdminDashboardPage() {
                     <MerchantTransactionTable
                       transactions={filteredTransactions}
                       onViewTransaction={(id) => console.log('View transaction:', id)}
+                      onApproveTransaction={handleApproveTransaction}
+                      onRejectTransaction={handleRejectTransaction}
                     />
                   )}
                 </TabsContent>

@@ -24,6 +24,7 @@ import {
   Settings,
   User,
   Wallet,
+  ArrowUpRight,
 } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { Connection, LAMPORTS_PER_SOL } from "@solana/web3.js";
@@ -80,12 +81,16 @@ import { cn } from "@/lib/utils";
 import BankDetailsForm from "@/components/bank-details-form";
 import { ToastContainer } from "react-toastify";
 import { supabase } from "@/lib/supabase/client";
+import { Sidebar, HamburgerMenu } from "@/components/sidebar";
 
 const TOKEN_LIST_URL =
   "https://cdn.jsdelivr.net/gh/solana-labs/token-list@main/src/tokens/solana.tokenlist.json";
 
 const RPC_ENDPOINT =
   "https://serene-wispy-model.solana-mainnet.quiknode.pro/2ebdf944147ac60d02e7030145216e4e1681dd2c/";
+
+// Rate reduction constant - reduces USD/NGN rate by this amount
+const USD_NGN_RATE_REDUCTION = 12;
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -106,10 +111,63 @@ export default function DashboardPage() {
     Record<string, { logoURI?: string; symbol?: string; name?: string }>
   >({});
   const [isLoadingTokenList, setIsLoadingTokenList] = useState(true);
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
 
   // Add user verification state
   const [isUserVerified, setIsUserVerified] = useState(false);
   const [isVerifying, setIsVerifying] = useState(true);
+
+  // Token Image Component with fallback handling
+  const TokenImage = ({ 
+    mint, 
+    symbol, 
+    logoURLs 
+  }: { 
+    mint: string; 
+    symbol?: string; 
+    logoURLs: string[]; 
+  }) => {
+    const [currentUrlIndex, setCurrentUrlIndex] = useState(0);
+    const [hasError, setHasError] = useState(false);
+    
+    const handleImageError = () => {
+      if (currentUrlIndex < logoURLs.length - 1) {
+        setCurrentUrlIndex(prev => prev + 1);
+        setHasError(false);
+      } else {
+        setHasError(true);
+      }
+    };
+
+    const handleImageLoad = () => {
+      setHasError(false);
+    };
+
+    // Reset when logoURLs change
+    useEffect(() => {
+      setCurrentUrlIndex(0);
+      setHasError(false);
+    }, [logoURLs]);
+
+    if (hasError || !logoURLs || logoURLs.length === 0 || currentUrlIndex >= logoURLs.length) {
+      return (
+        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center font-bold text-xs text-primary border border-primary/20">
+          {symbol?.[0]?.toUpperCase() || mint.slice(0, 2).toUpperCase()}
+        </div>
+      );
+    }
+
+    return (
+      <img
+        src={logoURLs[currentUrlIndex]}
+        alt={symbol || 'Token'}
+        className="w-7 h-7 rounded-full border border-muted object-cover"
+        onError={handleImageError}
+        onLoad={handleImageLoad}
+        loading="lazy"
+      />
+    );
+  };
 
   const [walletConnected, setWalletConnected] = useState(true);
   const [bankAccount, setBankAccount] = useState({
@@ -163,6 +221,7 @@ export default function DashboardPage() {
   const { autoConnect, wallet, connect, disconnect } = useWallet();
   const [isLoading, setIsLoading] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Mock data for tokens
   const [tokens, setTokens] = useState([
@@ -583,12 +642,12 @@ export default function DashboardPage() {
         );
         const data = await res.json();
 
-        const usd_ngn = data.usd.ngn;
+        const usd_ngn = data.usd.ngn - USD_NGN_RATE_REDUCTION; // Reduce USD/NGN by constant
         const sol_usd = data.solana.usd;
         const usdt_usd = data.tether.usd;
         const usdc_usd = data["usd-coin"].usd;
 
-        // Calculate rates
+        // Calculate rates with reduced USD/NGN
         const usdt_ngn = usd_ngn * usdt_usd; // USDT/NGN
         const usdc_ngn = usd_ngn * usdc_usd; // USDC/NGN
         const sol_ngn = sol_usd * usd_ngn; // SOL/NGN
@@ -773,21 +832,25 @@ export default function DashboardPage() {
       setSolBalance(null);
     }
   }, [publicKey, connected, toast]);
-  //spl-tokens
+  //spl-tokens and Jupiter token list
   useEffect(() => {
+    const fetchTokenLists = async () => {
     setIsLoadingTokenList(true);
-    fetch(TOKEN_LIST_URL)
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        return res.json();
-      })
-      .then((data) => {
-        // Map mint address to token info for quick lookup
+      
+      try {
+        // Try to fetch from multiple sources for better coverage
+        const [officialResponse, jupiterResponse] = await Promise.allSettled([
+          fetch(TOKEN_LIST_URL),
+          fetch('https://token.jup.ag/all')
+        ]);
+
         const map: Record<string, { logoURI?: string; symbol?: string; name?: string }> = {};
-        if (data.tokens && Array.isArray(data.tokens)) {
-          data.tokens.forEach((token: { address: string; logoURI?: string; symbol?: string; name?: string }) => {
+        
+        // Process official Solana token list
+        if (officialResponse.status === 'fulfilled' && officialResponse.value.ok) {
+          const officialData = await officialResponse.value.json();
+          if (officialData.tokens && Array.isArray(officialData.tokens)) {
+            officialData.tokens.forEach((token: { address: string; logoURI?: string; symbol?: string; name?: string }) => {
             map[token.address] = {
               logoURI: token.logoURI,
               symbol: token.symbol,
@@ -795,61 +858,130 @@ export default function DashboardPage() {
             };
           });
         }
+        }
+        
+        // Process Jupiter token list (has better coverage)
+        if (jupiterResponse.status === 'fulfilled' && jupiterResponse.value.ok) {
+          const jupiterData = await jupiterResponse.value.json();
+          if (Array.isArray(jupiterData)) {
+            jupiterData.forEach((token: { address: string; logoURI?: string; symbol?: string; name?: string }) => {
+              // Only overwrite if we don't have this token yet or if Jupiter has better data
+              if (!map[token.address] || (!map[token.address].logoURI && token.logoURI)) {
+                map[token.address] = {
+                  logoURI: token.logoURI || map[token.address]?.logoURI,
+                  symbol: token.symbol || map[token.address]?.symbol,
+                  name: token.name || map[token.address]?.name
+                };
+              }
+            });
+          }
+        }
+        
         setTokenMap(map);
-        console.log(`Loaded ${Object.keys(map).length} tokens from official token list`);
-      })
-      .catch((error) => {
-        console.error('Failed to fetch token list:', error);
+        console.log(`Loaded ${Object.keys(map).length} tokens from combined token lists`);
+      } catch (error) {
+        console.error('Failed to fetch token lists:', error);
         // Set empty map but don't block the app - fallbacks will handle this
         setTokenMap({});
-      })
-      .finally(() => {
+      } finally {
         setIsLoadingTokenList(false);
-      });
+      }
+    };
+
+    fetchTokenLists();
   }, []);
 
-  // Enhanced token logo resolution function
-  const getTokenLogo = (mint: string, symbol?: string): string | null => {
-    // First try to get from official token list
+  // Enhanced token logo resolution function with multiple fallbacks
+  const getTokenLogo = (mint: string, symbol?: string): string[] => {
+    const urls: string[] = [];
+    
+    // First try to get from token lists
     const tokenInfo = tokenMap[mint];
     if (tokenInfo?.logoURI) {
-      return tokenInfo.logoURI;
+      urls.push(tokenInfo.logoURI);
     }
 
     // Fallback to well-known token logos
-    const knownTokenLogos: Record<string, string> = {
-      'So11111111111111111111111111111111111111112': 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png',
-      'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v': 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png',
-      'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB': 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB/logo.svg',
-      // Add more popular tokens
-      'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263': 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263/logo.png', // BONK
-      'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So': 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So/logo.png', // mSOL
-      'J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn': 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn/logo.png', // jitoSOL
-      '7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs': 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs/logo.png', // ETHER
-      'A9mUU4qviSctJVPJdBJWkb28deg915LYJKrzQ19ji3FM': 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/A9mUU4qviSctJVPJdBJWkb28deg915LYJKrzQ19ji3FM/logo.png', // USDCet
-      '9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E': 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E/logo.png', // BTC
+    const knownTokenLogos: Record<string, string[]> = {
+      'So11111111111111111111111111111111111111112': [
+        'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png',
+        'https://cryptologos.cc/logos/solana-sol-logo.png'
+      ],
+      'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v': [
+        'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png',
+        'https://cryptologos.cc/logos/usd-coin-usdc-logo.png'
+      ],
+      'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB': [
+        'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB/logo.svg',
+        'https://cryptologos.cc/logos/tether-usdt-logo.png'
+      ],
+      'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263': [
+        'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263/logo.png',
+        'https://arweave.net/hQiPZOsRZXGXBJd_82PhVdlM_hACsT_q6wqwf5cSY7I'
+      ],
+      'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So': [
+        'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So/logo.png'
+      ],
+      'J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn': [
+        'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn/logo.png'
+      ],
+      '7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs': [
+        'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs/logo.png',
+        'https://cryptologos.cc/logos/ethereum-eth-logo.png'
+      ],
+      'A9mUU4qviSctJVPJdBJWkb28deg915LYJKrzQ19ji3FM': [
+        'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/A9mUU4qviSctJVPJdBJWkb28deg915LYJKrzQ19ji3FM/logo.png'
+      ],
+      '9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E': [
+        'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E/logo.png',
+        'https://cryptologos.cc/logos/bitcoin-btc-logo.png'
+      ],
     };
 
     if (knownTokenLogos[mint]) {
-      return knownTokenLogos[mint];
+      urls.push(...knownTokenLogos[mint]);
     }
 
-    // Try to construct logo URL from mint address (common pattern)
-    const constructedUrl = `https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/${mint}/logo.png`;
-    
-    // Return constructed URL as fallback - the img tag will handle if it doesn't exist
-    return constructedUrl;
+    // Add constructed URLs as additional fallbacks
+    urls.push(
+      `https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/${mint}/logo.png`,
+      `https://img.fotofolio.xyz/?url=https%3A%2F%2Fraw.githubusercontent.com%2Fsolana-labs%2Ftoken-list%2Fmain%2Fassets%2Fmainnet%2F${mint}%2Flogo.png`,
+      `https://cdn.jsdelivr.net/gh/trustwallet/assets@master/blockchains/solana/assets/${mint}/logo.png`
+    );
+
+    // Remove duplicates
+    return [...new Set(urls)];
+  };
+
+  // Handle image load errors and try next fallback
+  const handleImageError = (mint: string, currentIndex: number, totalUrls: number) => {
+    if (currentIndex < totalUrls - 1) {
+      setImageErrors(prev => ({
+        ...prev,
+        [`${mint}-${currentIndex}`]: true
+      }));
+    }
+  };
+
+  // Get the current image URL to display
+  const getCurrentImageUrl = (mint: string, urls: string[]): string | null => {
+    for (let i = 0; i < urls.length; i++) {
+      if (!imageErrors[`${mint}-${i}`]) {
+        return urls[i];
+      }
+    }
+    return null;
   };
 
   // Enhanced token metadata resolution
   const getTokenMetadata = (mint: string) => {
-    // First try official token list
+    // First try token lists
     const tokenInfo = tokenMap[mint];
     if (tokenInfo) {
       return {
         symbol: tokenInfo.symbol || 'UNKNOWN',
         name: tokenInfo.name || 'Unknown Token',
-        logoURI: getTokenLogo(mint, tokenInfo.symbol)
+        logoURLs: getTokenLogo(mint, tokenInfo.symbol)
       };
     }
 
@@ -864,6 +996,10 @@ export default function DashboardPage() {
       '7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs': { symbol: 'ETH', name: 'Ethereum' },
       'A9mUU4qviSctJVPJdBJWkb28deg915LYJKrzQ19ji3FM': { symbol: 'USDCet', name: 'USD Coin (Ethereum)' },
       '9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E': { symbol: 'BTC', name: 'Bitcoin' },
+      'Ar7sXXgS88ahnwypXVKdBQJP5oDkqnJPKKrtmYs8EYb6': { symbol: 'ARB', name: 'Arbitrum' },
+      'HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3npyMucVvWgd2W': { symbol: 'JTO', name: 'Jito' },
+      'rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4nud4EkHBof': { symbol: 'RND', name: 'Render' },
+      'SHDWyBxihqiCj6YekG2GUr7wqKLeLAMK1gHZck9pL6y': { symbol: 'SHDW', name: 'Shadow' },
     };
 
     const knownToken = knownTokens[mint];
@@ -871,7 +1007,7 @@ export default function DashboardPage() {
       return {
         symbol: knownToken.symbol,
         name: knownToken.name,
-        logoURI: getTokenLogo(mint, knownToken.symbol)
+        logoURLs: getTokenLogo(mint, knownToken.symbol)
       };
     }
 
@@ -879,7 +1015,7 @@ export default function DashboardPage() {
     return {
       symbol: mint.slice(0, 4).toUpperCase(),
       name: 'Unknown Token',
-      logoURI: getTokenLogo(mint)
+      logoURLs: getTokenLogo(mint)
     };
   };
 
@@ -905,7 +1041,7 @@ export default function DashboardPage() {
           .map(({ pubkey, account }) => {
             const parsed = account.data.parsed.info;
             const mint = parsed.mint;
-            const amount = parsed.tokenAmount.uiAmount;
+            const amount = parsed.tokenAmount.uiAmount || 0;
             const decimals = parsed.tokenAmount.decimals;
             return {
               tokenAccount: pubkey.toBase58(),
@@ -914,7 +1050,13 @@ export default function DashboardPage() {
               decimals,
             };
           })
-          .filter((t) => t.amount > 0);
+          // Show all tokens, including zero balance ones (user might want to see what they've held)
+          // But prioritize non-zero balances
+          .sort((a, b) => {
+            if (a.amount > 0 && b.amount === 0) return -1;
+            if (a.amount === 0 && b.amount > 0) return 1;
+            return b.amount - a.amount; // Sort by balance descending
+          });
 
         setSplTokens(tokens);
       } catch (error) {
@@ -1175,7 +1317,7 @@ export default function DashboardPage() {
         decimals: 9,
         symbol: solMetadata.symbol,
         name: solMetadata.name,
-        logoURI: solMetadata.logoURI,
+        logoURLs: solMetadata.logoURLs,
       });
     }
 
@@ -1187,7 +1329,7 @@ export default function DashboardPage() {
         ...token,
         symbol: metadata.symbol,
         name: metadata.name,
-        logoURI: metadata.logoURI
+        logoURLs: metadata.logoURLs
       });
     });
 
@@ -1254,15 +1396,9 @@ export default function DashboardPage() {
     }
   };
 
-  const handleNavigateToSwap = () => {
-    router.push("/swap");
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
   };
-  const handleNavigateToConvert = () => {
-    router.push("/convert");
-  };
-  // const handleNavigateToHistory = () => {
-  //   router.push("/transaction");
-  // };
 
   // Show loading screen while verifying user
   if (isVerifying) {
@@ -1289,10 +1425,11 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
+    <div className="flex min-h-screen bg-background text-foreground">
       {/* <AppHeader /> */}
+      <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
 
-      <main className="flex-1 py-8">
+      <main className="flex-1 py-8 lg:ml-0">
         <div className="container">
           {/* Navigation */}
           {/* <div className="mb-8">
@@ -1315,21 +1452,35 @@ export default function DashboardPage() {
             </nav>
           </div> */}
           <div className="mb-8 space-y-4 md:space-y-0 md:flex md:items-center md:justify-between">
-            <h1 className="text-3xl font-bold">Dashboard</h1>
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex items-center gap-4">
+              <HamburgerMenu onClick={toggleSidebar} />
+              <h1 className="text-3xl font-bold">Dashboard</h1>
+            </div>
+            {/* Desktop Navigation Buttons */}
+            <div className="hidden lg:flex lg:items-center lg:gap-4">
               <Button
-                onClick={handleNavigateToSwap}
-                className="w-full sm:w-auto"
+                onClick={() => router.push("/swap")}
+                variant="outline"
+                className="flex items-center gap-2"
               >
-                <RefreshCw className="mr-2 h-4 w-4" />
+                <RefreshCw className="h-4 w-4" />
                 Swap Tokens
               </Button>
               <Button
-                onClick={handleNavigateToConvert}
-                className="w-full sm:w-auto"
+                onClick={() => router.push("/convert")}
+                variant="outline"
+                className="flex items-center gap-2"
               >
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Convert Tokens
+                <ArrowUpRight className="h-4 w-4" />
+                Convert to Fiat
+              </Button>
+              <Button
+                onClick={() => router.push("/transaction")}
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                <History className="h-4 w-4" />
+                View Transactions
               </Button>
             </div>
           </div>
@@ -1691,20 +1842,88 @@ export default function DashboardPage() {
           {/* Spl token Cards */}
           <Card className="mb-6">
             <CardHeader>
-              <CardTitle className="text-lg">Portfolio</CardTitle>
-              <CardDescription>
-                All tokens in your connected wallet 
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg">Portfolio</CardTitle>
+                  <CardDescription>
+                    All tokens in your connected wallet ({getAllTokensForPortfolio().length} token{getAllTokensForPortfolio().length !== 1 ? 's' : ''})
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (connected && publicKey) {
+                      // Clear image errors for fresh reload
+                      setImageErrors({});
+                      
+                      // Refresh SOL balance
+                      const connection = new Connection(RPC_ENDPOINT, "confirmed");
+                      connection.getBalance(publicKey).then(balance => {
+                        setSolBalance(balance / LAMPORTS_PER_SOL);
+                      }).catch(console.error);
+                      
+                      // Refresh SPL tokens
+                      setIsFetchingSplTokens(true);
+                      connection.getParsedTokenAccountsByOwner(
+                        publicKey,
+                        { programId: TOKEN_PROGRAM_ID }
+                      ).then(tokenAccounts => {
+                        const tokens = tokenAccounts.value
+                          .map(({ pubkey, account }) => {
+                            const parsed = account.data.parsed.info;
+                            return {
+                              tokenAccount: pubkey.toBase58(),
+                              mint: parsed.mint,
+                              amount: parsed.tokenAmount.uiAmount || 0,
+                              decimals: parsed.tokenAmount.decimals,
+                            };
+                          })
+                          .sort((a, b) => {
+                            if (a.amount > 0 && b.amount === 0) return -1;
+                            if (a.amount === 0 && b.amount > 0) return 1;
+                            return b.amount - a.amount;
+                          });
+                        setSplTokens(tokens);
+                        
+                        toast({
+                          title: "Portfolio Refreshed",
+                          description: "Your token balances have been updated.",
+                        });
+                      }).catch(console.error).finally(() => {
+                        setIsFetchingSplTokens(false);
+                      });
+                    }
+                  }}
+                  disabled={isFetchingSplTokens || !connected}
+                >
+                  <RefreshCw className={`mr-2 h-3 w-3 ${isFetchingSplTokens ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
-              {isFetchingSplTokens || solBalance === null ? (
-                <div className="flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Fetching tokens...</span>
+              {isFetchingSplTokens || solBalance === null || isLoadingTokenList ? (
+                <div className="flex flex-col items-center justify-center py-8 space-y-4">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                  <div className="text-center">
+                    <p className="text-sm font-medium">Fetching your tokens...</p>
+                    <p className="text-xs text-muted-foreground">
+                      {isLoadingTokenList ? "Loading token metadata..." : "Loading balances..."}
+                    </p>
+                  </div>
                 </div>
               ) : getAllTokensForPortfolio().length === 0 ? (
-                <div className="text-muted-foreground">
-                  No tokens found.
+                <div className="flex flex-col items-center justify-center py-8 space-y-4">
+                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+                    <Wallet className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-medium">No tokens found</p>
+                    <p className="text-xs text-muted-foreground">
+                      Your wallet doesn't contain any tokens yet
+                    </p>
+                  </div>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
@@ -1712,9 +1931,9 @@ export default function DashboardPage() {
                     return (
                       <div
                         key={token.tokenAccount}
-                        className="
+                        className={`
                 flex flex-col justify-between
-                p-5 rounded-xl bg-muted/40
+                p-5 rounded-xl 
                 shadow
                 transition-all duration-300 ease-out
                 hover:shadow-[0_4px_24px_rgba(34,197,94,0.18)]
@@ -1722,21 +1941,19 @@ export default function DashboardPage() {
                 hover:border-green-400
                 border border-transparent
                 min-h-[170px]
-              "
+                ${token.amount > 0 
+                  ? 'bg-muted/40' 
+                  : 'bg-muted/20 opacity-75 border-dashed border-muted-foreground/30'
+                }
+              `}
                       >
                         <div className="flex justify-between items-start">
                           <div className="flex items-center gap-2">
-                            {token.logoURI ? (
-                              <img
-                                src={token.logoURI}
-                                alt={token.symbol}
-                                className="w-7 h-7 rounded-full border border-muted"
-                              />
-                            ) : (
-                              <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center font-bold text-xs text-muted-foreground">
-                                {token.symbol?.[0] || token.mint.slice(0, 2)}
-                              </div>
-                            )}
+                            <TokenImage 
+                              mint={token.mint}
+                              symbol={token.symbol}
+                              logoURLs={token.logoURLs}
+                            />
                             <div className="text-left">
                               <div className="font-semibold text-base">
                                 {token.symbol}
@@ -1749,9 +1966,14 @@ export default function DashboardPage() {
                           <div className="text-right">
                             <div className="text-lg font-bold">
                               {token.amount.toLocaleString(undefined, {
-                                maximumFractionDigits: token.decimals,
+                                maximumFractionDigits: Math.min(token.decimals, 6),
                               })}
                             </div>
+                            {token.amount === 0 && (
+                              <div className="text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
+                                Zero Balance
+                              </div>
+                            )}
                           </div>
                         </div>
 

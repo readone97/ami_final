@@ -12,6 +12,8 @@ import { useToast } from "@/hooks/use-toast"
 import { Connection, VersionedTransaction } from "@solana/web3.js"
 import { getTokens, getQuote, getSwapTransaction, Token, QuoteResponse } from "@/lib/jupiter"
 import Image from "next/image"
+import { supabase } from "@/lib/supabase/client"
+import { Sidebar, HamburgerMenu } from "@/components/sidebar"
 
 export default function SwapPage() {
   const router = useRouter()
@@ -25,6 +27,66 @@ export default function SwapPage() {
   const [quote, setQuote] = useState<QuoteResponse | null>(null)
   const [slippage, setSlippage] = useState(50)
   const [error, setError] = useState<string | null>(null)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  // Save swap transaction to database
+  const saveSwapTransactionToDatabase = async (
+    signature: string,
+    fromToken: Token,
+    toToken: Token,
+    amount: string,
+    quote: QuoteResponse
+  ) => {
+    if (!publicKey) return;
+
+    try {
+      // Get user profile
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("wallet_address", publicKey.toString())
+        .single();
+
+      if (profileError || !profile) {
+        console.error("User profile not found:", profileError);
+        return;
+      }
+
+      const transactionData = {
+        transaction_id: signature,
+        user_id: profile.id,
+        wallet_address: publicKey.toString(),
+        from_amount: parseFloat(amount),
+        from_currency: fromToken.symbol,
+        to_amount: parseFloat(quote.outAmount) / Math.pow(10, toToken.decimals),
+        to_currency: toToken.symbol,
+        exchange_rate: parseFloat(quote.outAmount) / parseFloat(quote.inAmount),
+        fee: "0", // Jupiter quotes don't include fee in the response
+        status: "completed",
+        notes: `Swap from ${fromToken.symbol} to ${toToken.symbol}`,
+      };
+
+      const { data, error } = await supabase
+        .from("transactions")
+        .insert(transactionData)
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Database error:", error);
+        throw error;
+      }
+
+      console.log("Swap transaction saved successfully:", data);
+    } catch (error) {
+      console.error("Failed to save swap transaction:", error);
+      throw error;
+    }
+  };
+
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
+  };
 
   // Check wallet connection
   useEffect(() => {
@@ -300,12 +362,20 @@ export default function SwapPage() {
         throw new Error("Transaction failed final verification");
       }
   
+            // Save transaction to database
+      try {
+        await saveSwapTransactionToDatabase(signature!, fromToken!, toToken!, amount, quote!);
+      } catch (dbError) {
+        console.error("Failed to save transaction to database:", dbError);
+        // Don't fail the swap if database save fails
+      }
+
       toast({
         title: "Swap Successful",
         description: "Your tokens have been swapped!",
         variant: "default",
       });
-  
+
       // Reset form state
       setAmount("");
       setQuote(null);
@@ -338,17 +408,23 @@ export default function SwapPage() {
   
 
   return (
-    <div className="container flex min-h-screen flex-col py-8 bg-background text-foreground">
-      <div className="flex items-center justify-between mb-8">
-        <Button variant="ghost" onClick={() => router.push("/dashboard")}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Dashboard
-        </Button>
-        <Button variant="outline" onClick={() => setQuote(null)}>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Refresh Quote
-        </Button>
-      </div>
+    <div className="flex min-h-screen bg-background text-foreground">
+      <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
+      
+      <div className="container flex flex-col py-8 lg:ml-0">
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <HamburgerMenu onClick={toggleSidebar} />
+            <Button variant="ghost" onClick={() => router.push("/dashboard")}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Dashboard
+            </Button>
+          </div>
+          <Button variant="outline" onClick={() => setQuote(null)}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh Quote
+          </Button>
+        </div>
 
       <Card className="w-full max-w-2xl mx-auto">
         <CardHeader>
@@ -525,6 +601,7 @@ export default function SwapPage() {
           </Button>
         </CardFooter>
       </Card>
+      </div>
     </div>
   )
 }

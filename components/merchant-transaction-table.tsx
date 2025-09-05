@@ -2,11 +2,12 @@
 
 import { useState } from "react"
 import { format } from "date-fns"
-import { ArrowUpDown, MoreHorizontal } from "lucide-react"
+import { ArrowUpDown, MoreHorizontal, Check, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { useToast } from "@/hooks/use-toast"
 
 // Transaction interface matches the admin page transaction format
 interface Transaction {
@@ -29,11 +30,19 @@ interface Transaction {
 interface MerchantTransactionTableProps {
   transactions: Transaction[]
   onViewTransaction: (id: string) => void
+  onApproveTransaction?: (id: string) => void
+  onRejectTransaction?: (id: string) => void
 }
 
-export function MerchantTransactionTable({ transactions, onViewTransaction }: MerchantTransactionTableProps) {
+export function MerchantTransactionTable({ 
+  transactions, 
+  onViewTransaction, 
+  onApproveTransaction, 
+  onRejectTransaction 
+}: MerchantTransactionTableProps) {
   const [sortBy, setSortBy] = useState<string>("createdAt")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
+  const { toast } = useToast()
 
   // Sorting logic
   const sortedTransactions = [...transactions].sort((a, b) => {
@@ -143,19 +152,43 @@ export function MerchantTransactionTable({ transactions, onViewTransaction }: Me
                   </div>
                 </TableCell>
                 <TableCell className="text-right">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm">
-                        <MoreHorizontal className="h-4 w-4" />
-                        <span className="sr-only">Open menu</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => onViewTransaction(transaction.id)}>
-                        View details
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <div className="flex items-center justify-end gap-2">
+                    {transaction.status === 'pending' && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                          onClick={() => onApproveTransaction?.(transaction.id)}
+                          title="Approve transaction"
+                        >
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => onRejectTransaction?.(transaction.id)}
+                          title="Reject transaction"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                          <MoreHorizontal className="h-4 w-4" />
+                          <span className="sr-only">Open menu</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => onViewTransaction(transaction.id)}>
+                          View details
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </TableCell>
               </TableRow>
             ))

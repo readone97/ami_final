@@ -38,7 +38,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Sidebar, HamburgerMenu } from "@/components/sidebar";
 // import { ConversionConfirmationDialog } from "@/components/conversion-confirmation-dialog";
+
+// Rate reduction constant - reduces USD/NGN rate by this amount
+const USD_NGN_RATE_REDUCTION = 14;
 
 import { useWallet } from "@solana/wallet-adapter-react";
 import {
@@ -86,6 +90,11 @@ export default function ConvertPage() {
     { tokenAccount: string; mint: string; amount: number; decimals: number }[]
   >([]);
   const [isFetchingTokens, setIsFetchingTokens] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
+  };
 
   const { publicKey, connected } = useWallet();
   const [showConversionConfirmation, setShowConversionConfirmation] =
@@ -136,15 +145,26 @@ export default function ConvertPage() {
   useEffect(() => {
     async function fetchRates() {
       try {
-        // CoinGecko API: Get USDT, USDC, SOL in NGN
+        // CoinGecko API: Get USD/NGN, USDT/USD, USDC/USD, SOL/USD
         const res = await fetch(
-          "https://api.coingecko.com/api/v3/simple/price?ids=tether,usd-coin,solana&vs_currencies=ngn"
+          "https://api.coingecko.com/api/v3/simple/price?ids=usd,usd-coin,tether,solana&vs_currencies=ngn,usd"
         );
         const data = await res.json();
+
+        const usd_ngn = data.usd.ngn - USD_NGN_RATE_REDUCTION; // Reduce USD/NGN by constant
+        const sol_usd = data.solana.usd;
+        const usdt_usd = data.tether.usd;
+        const usdc_usd = data["usd-coin"].usd;
+
+        // Calculate rates with reduced USD/NGN
+        const usdt_ngn = usd_ngn * usdt_usd; // USDT/NGN
+        const usdc_ngn = usd_ngn * usdc_usd; // USDC/NGN
+        const sol_ngn = sol_usd * usd_ngn; // SOL/NGN
+
         setExchangeRates({
-          usdt_ngn: data.tether.ngn,
-          usdc_ngn: data["usd-coin"].ngn,
-          sol_ngn: data.solana.ngn,
+          usdt_ngn,
+          usdc_ngn,
+          sol_ngn,
         });
       } catch (err) {
         toast({
@@ -457,15 +477,19 @@ export default function ConvertPage() {
  
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <main className="flex-1 py-6 md:py-8">
+    <div className="flex min-h-screen bg-background text-foreground">
+      <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
+      
+      <main className="flex-1 py-6 md:py-8 lg:ml-0">
         <div className="container px-4 md:px-6">
           <div className="mb-8">
-            <Button variant="ghost" onClick={() => router.push("/dashboard")}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Dashboard
-            </Button>
-           
+            <div className="flex items-center gap-4">
+              <HamburgerMenu onClick={toggleSidebar} />
+              <Button variant="ghost" onClick={() => router.push("/dashboard")}>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Dashboard
+              </Button>
+            </div>
           </div>
 
           <Card className="max-w-md mx-auto overflow-hidden border-2 border-primary/10 shadow-sm hover:shadow-md transition-shadow">
