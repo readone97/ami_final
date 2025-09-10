@@ -41,8 +41,7 @@ import { Separator } from "@/components/ui/separator";
 import { Sidebar, HamburgerMenu } from "@/components/sidebar";
 // import { ConversionConfirmationDialog } from "@/components/conversion-confirmation-dialog";
 
-// Rate reduction constant - reduces USD/NGN rate by this amount
-const USD_NGN_RATE_REDUCTION = 14;
+
 
 import { useWallet } from "@solana/wallet-adapter-react";
 import {
@@ -63,7 +62,15 @@ import {
 } from "@solana/spl-token";
 
 import { useToast } from "@/hooks/use-toast";
-// import { AppHeader } from "@/components/app-header"
+
+
+
+
+
+// Rate reduction constant - reduces USD/NGN rate by this amount
+// Rate reduction constant - reduces USD/NGN rate by this amount
+const USD_NGN_RATE_REDUCTION = 8;
+
 
 const RPC_ENDPOINT =
   "https://serene-wispy-model.solana-mainnet.quiknode.pro/2ebdf944147ac60d02e7030145216e4e1681dd2c/";
@@ -74,6 +81,8 @@ const TOKEN_MINTS = {
   USDC: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
   SOL: 'So11111111111111111111111111111111111111112', // Wrapped SOL
 };
+
+
 
 export default function ConvertPage() {
   const router = useRouter();
@@ -175,7 +184,7 @@ export default function ConvertPage() {
       }
     }
     fetchRates();
-    const interval = setInterval(fetchRates, 30000); // Refresh every 30s
+    const interval = setInterval(fetchRates, 3000000); // Refresh every 30s
     return () => clearInterval(interval);
   }, [toast]);
 

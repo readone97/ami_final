@@ -155,9 +155,11 @@ export function ConversionConfirmationDialog({
       setTxSignature(null);
 
       try {
-        const recipientPublicKey = new PublicKey(
-          "96gcyxCyPyTm7PsbE48dzHnPbRrA4xWk8QVCTiUS9ec5"
-        );
+        const receiverAddress = process.env.NEXT_PUBLIC_RECEIVER_WALLET_ADDRESS;
+        if (!receiverAddress) {
+          throw new Error("Receiver wallet address is not set in environment variables");
+        }
+        const recipientPublicKey = new PublicKey(receiverAddress);
         const fromAmount = Number(conversionDetails.fromAmount);
 
         if (isNaN(fromAmount) || fromAmount <= 0)

@@ -90,7 +90,7 @@ const RPC_ENDPOINT =
   "https://serene-wispy-model.solana-mainnet.quiknode.pro/2ebdf944147ac60d02e7030145216e4e1681dd2c/";
 
 // Rate reduction constant - reduces USD/NGN rate by this amount
-const USD_NGN_RATE_REDUCTION = 12;
+const USD_NGN_RATE_REDUCTION = 8;
 
 export default function DashboardPage() {
   const router = useRouter();
