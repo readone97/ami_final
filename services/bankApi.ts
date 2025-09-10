@@ -2,7 +2,7 @@ import axios from 'axios';
 import { Bank, BankVerificationResult } from '../types';
 
 const PAYSTACK_API_URL = 'https://api.paystack.co';
-const PAYSTACK_SECRET_KEY = 'sk_test_466033a9544dfeda78ea34cd123d1183ba3c15a0'
+const PAYSTACK_SECRET_KEY = process.env.NEXT_PUBLIC_PAYSTACK_SECRET_KEY
 // const PAYSTACK_SECRET_KEY = import.meta.env.VITE_PAYSTACK_SECRET_KEY;
 
 // Configure axios defaults for Paystack with timeout
