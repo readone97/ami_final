@@ -642,7 +642,7 @@ export default function DashboardPage() {
         );
         const data = await res.json();
 
-        const usd_ngn = data.usd.ngn - USD_NGN_RATE_REDUCTION; // Reduce USD/NGN by constant
+        const usd_ngn = data.usd.ngn ; // Reduce USD/NGN by constant
         const sol_usd = data.solana.usd;
         const usdt_usd = data.tether.usd;
         const usdc_usd = data["usd-coin"].usd;
