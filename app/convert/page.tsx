@@ -69,7 +69,7 @@ import { useToast } from "@/hooks/use-toast";
 
 // Rate reduction constant - reduces USD/NGN rate by this amount
 // Rate reduction constant - reduces USD/NGN rate by this amount
-const USD_NGN_RATE_REDUCTION = 8;
+// const USD_NGN_RATE_REDUCTION = 8;
 
 
 const RPC_ENDPOINT =
@@ -160,7 +160,7 @@ export default function ConvertPage() {
         );
         const data = await res.json();
 
-        const usd_ngn = data.usd.ngn - USD_NGN_RATE_REDUCTION; // Reduce USD/NGN by constant
+        const usd_ngn = data.usd.ngn ; // Reduce USD/NGN by constant
         const sol_usd = data.solana.usd;
         const usdt_usd = data.tether.usd;
         const usdc_usd = data["usd-coin"].usd;
@@ -184,7 +184,7 @@ export default function ConvertPage() {
       }
     }
     fetchRates();
-    const interval = setInterval(fetchRates, 3000000); // Refresh every 30s
+    const interval = setInterval(fetchRates, 30000); // Refresh every 30s
     return () => clearInterval(interval);
   }, [toast]);
 
