@@ -5,7 +5,7 @@ import { Check, Loader2 } from 'lucide-react';
 import BankSelector from './BankSelector';
 import { useBankVerification } from '../hooks/useBankVerification';
 import { useAccountContext } from '../context/AccountContext';
-import { getBankNameByCode } from '../services/bankApi';
+import { getBankNameByCode, testNubanApi, testVerificationProcess, testPaystackBanksApi } from '../services/bankApi';
 import { Bank } from '../types';
 import { fetchBanks } from '../services/bankApi';
 import { Button } from './ui/button';
@@ -24,8 +24,18 @@ const BankAccountForm: React.FC<BankAccountFormProps> = ({ onSuccess }) => {
   const [isFormComplete, setIsFormComplete] = useState<boolean>(false);
 
   const { accountName, isLoading, error, verifyAccount } = useBankVerification();
+  
+  // Debug account name changes
+  console.log('BankDetailsForm: accountName state:', accountName);
+  console.log('BankDetailsForm: isLoading state:', isLoading);
+  console.log('BankDetailsForm: error state:', error);
   const { saveAccount } = useAccountContext();
    const { toast } = useToast();
+
+  // Monitor account name changes
+  useEffect(() => {
+    console.log('BankDetailsForm: accountName changed to:', accountName);
+  }, [accountName]);
 
   useEffect(() => {
     const loadBanks = async () => {
@@ -44,8 +54,18 @@ const BankAccountForm: React.FC<BankAccountFormProps> = ({ onSuccess }) => {
     const isAccountNumberValid = accountNumber.length === 10;
     const isBankSelected = !!selectedBankCode;
     
+    console.log('BankDetailsForm: Verification trigger check:', {
+      accountNumber,
+      selectedBankCode,
+      isAccountNumberValid,
+      isBankSelected
+    });
+    
     if (isAccountNumberValid && isBankSelected) {
+      console.log('BankDetailsForm: Triggering verification...');
       verifyAccount(accountNumber, selectedBankCode);
+    } else {
+      console.log('BankDetailsForm: Not triggering verification - conditions not met');
     }
   }, [accountNumber, selectedBankCode, verifyAccount]);
 
@@ -74,6 +94,92 @@ const BankAccountForm: React.FC<BankAccountFormProps> = ({ onSuccess }) => {
 
   const handleSelectBank = (code: string) => {
     setSelectedBankCode(code);
+  };
+
+  const testDirectApi = async () => {
+    if (accountNumber.length === 10 && selectedBankCode) {
+      console.log('Testing direct NUBAN API...');
+      try {
+        const result = await testNubanApi(accountNumber, selectedBankCode);
+        console.log('Direct API result:', result);
+        
+        // Try to extract account name from the result
+        let extractedName = '';
+        if (result) {
+          const possibleNames = [
+            result.account_name,
+            result.name,
+            result.data?.account_name,
+            result.accountName,
+            result.account_holder,
+            result.holder_name,
+            result.customer_name,
+            result.full_name
+          ];
+          extractedName = possibleNames.find(name => name && name.trim() !== '') || 'Not found';
+        }
+        
+        toast({
+          title: "Direct API Test",
+          description: `Account Name: ${extractedName}\nFull Response: ${JSON.stringify(result, null, 2)}`,
+          variant: "default",
+        });
+      } catch (error: any) {
+        console.error('Direct API test failed:', error);
+        toast({
+          title: "Direct API Test Failed",
+          description: error.message || 'Unknown error',
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const testVerification = async () => {
+    if (accountNumber.length === 10 && selectedBankCode) {
+      console.log('Testing verification process...');
+      try {
+        const result = await testVerificationProcess(accountNumber, selectedBankCode);
+        console.log('Verification result:', result);
+        
+        toast({
+          title: "Verification Test",
+          description: `Status: ${result.status}\nAccount Name: ${result.data?.account_name || 'Not found'}\nMessage: ${result.message}`,
+          variant: "default",
+        });
+      } catch (error: any) {
+        console.error('Verification test failed:', error);
+        toast({
+          title: "Verification Test Failed",
+          description: error.message || 'Unknown error',
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const testPaystackBanks = async () => {
+    console.log('Testing Paystack Banks API...');
+    try {
+      const result = await testPaystackBanksApi();
+      console.log('Paystack Banks result:', result);
+      
+      const bankCount = result?.data?.length || 0;
+      const firstFewBanks = result?.data?.slice(0, 5).map((bank: any) => `${bank.name} (${bank.code})`).join(', ') || 'None';
+      
+      toast({
+        title: "Paystack Banks API Test",
+        description: `Found ${bankCount} banks\nFirst 5: ${firstFewBanks}\n\nFull Response: ${JSON.stringify(result, null, 2)}`,
+        variant: "default",
+      });
+    } catch (error: any) {
+      console.error('Paystack Banks test failed:', error);
+      toast({
+        title: "Paystack Banks Test Failed",
+        description: error.message || 'Unknown error',
+        variant: "destructive",
+      });
+    }
   };
 
   
@@ -218,6 +324,60 @@ const handleSubmit = (e: React.FormEvent) => {
               <p className="text-sm text-red-400">{error}</p>
             </div>
           )}
+
+          {/* Debug Info */}
+          {/* <div className="p-3 bg-gray-800 rounded-lg mb-4 text-xs">
+            <div className="text-gray-400">Debug Info:</div>
+            <div>Account Name State: "{accountName}"</div>
+            <div>Is Loading: {isLoading ? 'Yes' : 'No'}</div>
+            <div>Error: {error || 'None'}</div>
+            <div>Account Number: {accountNumber}</div>
+            <div>Bank Code: {selectedBankCode}</div>
+          </div> */}
+
+          {/* Debug Test Buttons */}
+          {/* <div className="space-y-2 mb-4">
+            <Button
+              type="button"
+              onClick={testPaystackBanks}
+              variant="outline"
+              className="w-full"
+            >
+              Test Paystack Banks API
+            </Button>
+          </div> */}
+          
+          {/* {accountNumber.length === 10 && selectedBankCode && (
+            <div className="space-y-2 mb-4">
+              <Button
+                type="button"
+                onClick={testDirectApi}
+                variant="outline"
+                className="w-full"
+              >
+                Test Direct NUBAN API
+              </Button>
+              <Button
+                type="button"
+                onClick={testVerification}
+                variant="outline"
+                className="w-full"
+              >
+                Test Verification Process
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  console.log('Manual verification trigger...');
+                  verifyAccount(accountNumber, selectedBankCode);
+                }}
+                variant="outline"
+                className="w-full"
+              >
+                Trigger Manual Verification
+              </Button>
+            </div>
+          )} */}
           
           <Button
             type="submit"

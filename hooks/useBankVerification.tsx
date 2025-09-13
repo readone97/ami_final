@@ -36,18 +36,30 @@ export const useBankVerification = (): VerificationHookResult => {
     setIsLoading(true);
 
     try {
+      console.log('=== useBankVerification: Starting verification ===');
+      console.log('useBankVerification: Starting verification...');
       const response = await verifyBankAccount(accountNumber, bankCode);
       
+      console.log('=== useBankVerification: Response received ===');
+      console.log('useBankVerification: Response received:', response);
+      console.log('useBankVerification: Response status:', response.status);
+      console.log('useBankVerification: Response data:', response.data);
+      
       if (response.status && response.data) {
+        console.log('=== useBankVerification: Setting account name ===');
+        console.log('useBankVerification: Setting account name:', response.data.account_name);
         setAccountName(response.data.account_name);
         // Cache the result
         accountCache.set(cacheKey, response.data.account_name);
+        console.log('useBankVerification: Account name set successfully');
       } else {
+        console.log('=== useBankVerification: Verification failed ===');
+        console.log('useBankVerification: Verification failed:', response.message);
         setError(response.message || 'Verification failed');
       }
     } catch (err) {
+      console.error('useBankVerification: Error occurred:', err);
       setError('An error occurred during verification. Please try again.');
-      console.error('Bank verification error:', err);
     } finally {
       setIsLoading(false);
     }
