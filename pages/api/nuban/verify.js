@@ -1,50 +1,78 @@
 // pages/api/nuban/verify.js
 
-import { NextApiRequest, NextApiResponse } from 'next'
-
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', ['GET'])
     return res.status(405).json({ message: 'Method not allowed' })
   }
 
-  const { account_number } = req.query
-  const token = process.env.NUBAN_API_TOKEN
+  const { account_number, bank_code } = req.query
+  const apiKey = process.env.NEXT_PUBLIC_NUBAN_API_KEY
 
-  if (!token) {
-    return res.status(500).json({ message: 'Missing NUBAN API token in environment.' })
+  if (!apiKey) {
+    return res.status(500).json({ message: 'Missing NUBAN API key in environment.' })
   }
 
   if (!account_number || String(account_number).length !== 10) {
     return res.status(400).json({ message: 'Invalid or missing account_number parameter.' })
   }
 
+  if (!bank_code) {
+    return res.status(400).json({ message: 'Invalid or missing bank_code parameter.' })
+  }
+
   try {
-    // Step 1: Fetch available bank codes
-    const codesRes = await fetch('https://nubapi.com/api/bank-json', {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-    if (!codesRes.ok) throw new Error('Failed to fetch bank codes')
-    const codesData = await codesRes.json()
-
-    // Use first bank code as default (adjust logic as needed)
-    const bankCode = codesData[0]?.code
-    if (!bankCode) throw new Error('No bank code found')
-
-    // Step 2: Verify account details
+    // Verify account details using NUBAN API with the correct format
+    // Format: https://app.nuban.com.ng/api/API-KEY?bank_code=xxx&acc_no=xxx
     const verifyRes = await fetch(
-      `https://nubapi.com/api/verify?account_number=${account_number}&bank_code=${bankCode}`,
-      { headers: { Authorization: `Bearer ${token}` } }
+      `https://app.nuban.com.ng/api/${apiKey}?bank_code=${bank_code}&acc_no=${account_number}`,
+      { 
+        headers: { 
+          'Content-Type': 'application/json'
+        } 
+      }
     )
+    
     if (!verifyRes.ok) {
       const err = await verifyRes.json().catch(() => null)
-      return res.status(verifyRes.status).json({ message: err?.message || 'Verification failed' })
+      return res.status(verifyRes.status).json({ 
+        message: err?.message || 'Verification failed',
+        status: false 
+      })
     }
 
     const verifyData = await verifyRes.json()
-    return res.status(200).json(verifyData)
+    
+    console.log('NUBAN API Response:', verifyData)
+    
+    // Check if the response indicates an error
+    if (verifyData.error) {
+      console.log('NUBAN API returned error:', verifyData.message)
+      return res.status(400).json({
+        message: verifyData.message || 'Account verification failed',
+        status: false
+      })
+    }
+
+    // Extract account name from various possible response formats
+    const accountName = verifyData.account_name || verifyData.name || verifyData.data?.account_name || verifyData.accountName
+    
+    console.log('Extracted account name:', accountName)
+
+    return res.status(200).json({
+      status: true,
+      message: 'Account verification successful',
+      data: {
+        account_name: accountName,
+        account_number: account_number,
+        bank_code: bank_code
+      }
+    })
   } catch (error) {
-    console.error('NUBAN proxy error:', error)
-    return res.status(500).json({ message: error.message || 'Internal server error' })
+    console.error('NUBAN API proxy error:', error)
+    return res.status(500).json({ 
+      message: error.message || 'Internal server error',
+      status: false 
+    })
   }
 }
