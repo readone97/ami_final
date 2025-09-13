@@ -3,19 +3,13 @@ import { Bank, BankVerificationResult } from '../types';
 
 const NUBAN_API_URL = 'https://app.nuban.com.ng/api';
 const NUBAN_API_KEY = 'NUBAN-VZZYXCZA3365';
-
-// Paystack API configuration
-const PAYSTACK_API_URL = 'https://api.paystack.co';
-const PAYSTACK_SECRET_KEY = process.env.NEXT_PUBLIC_PAYSTACK_SECRET_KEY;
              
 // Debug API key loading
 console.log('NUBAN_API_KEY loaded:', NUBAN_API_KEY ? 'YES' : 'NO');
 console.log('NUBAN_API_KEY value:', NUBAN_API_KEY);
-console.log('PAYSTACK_SECRET_KEY loaded:', PAYSTACK_SECRET_KEY ? 'YES' : 'NO');
 console.log('Environment check:', {
   NODE_ENV: process.env.NODE_ENV,
-  NEXT_PUBLIC_NUBAN_API_KEY: process.env.NEXT_PUBLIC_NUBAN_API_KEY,
-  NEXT_PUBLIC_PAYSTACK_SECRET_KEY: process.env.NEXT_PUBLIC_PAYSTACK_SECRET_KEY
+  NEXT_PUBLIC_NUBAN_API_KEY: process.env.NEXT_PUBLIC_NUBAN_API_KEY
 });
 
 // Cache for banks list
@@ -74,7 +68,7 @@ const getMockBanks = (): Bank[] => [
 ];
 
 export const fetchBanks = async (): Promise<Bank[]> => {
-  console.log('fetchBanks called, PAYSTACK_SECRET_KEY:', PAYSTACK_SECRET_KEY ? 'YES' : 'NO');
+  console.log('fetchBanks called - using mock banks data');
   
   // Return cached banks if available and not expired
   if (banksCache && banksCacheExpiry && Date.now() < banksCacheExpiry) {
@@ -82,54 +76,15 @@ export const fetchBanks = async (): Promise<Bank[]> => {
     return banksCache;
   }
 
-  try {
-    if (PAYSTACK_SECRET_KEY) {
-      console.log('Fetching banks from Paystack API...');
-      const response = await axios.get(`${PAYSTACK_API_URL}/bank`, {
-        headers: {
-          'Authorization': `Bearer ${PAYSTACK_SECRET_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        timeout: 10000
-      });
-
-      console.log('Paystack API response:', response.data);
-      
-      if (response.data && response.data.status && response.data.data) {
-        const paystackBanks = response.data.data.map((bank: any, index: number) => ({
-          id: bank.id?.toString() || (index + 1).toString(),
-          code: bank.code,
-          name: bank.name
-        }));
-
-        console.log(`Successfully fetched ${paystackBanks.length} banks from Paystack`);
-        
-        // Update cache
-        banksCache = paystackBanks;
-        banksCacheExpiry = Date.now() + CACHE_DURATION;
-        
-        return paystackBanks;
-      } else {
-        console.warn('Paystack API returned invalid response structure');
-        throw new Error('Invalid response from Paystack API');
-      }
-    } else {
-      console.warn('Paystack secret key not configured, using mock banks data');
-      throw new Error('Paystack secret key not configured');
-    }
-  } catch (error: any) {
-    console.error('Error fetching banks from Paystack API:', error);
-    console.log('Falling back to mock banks data');
-    
-    // Fallback to mock banks data
-    const banks = getMockBanks();
-    
-    // Update cache
-    banksCache = banks;
-    banksCacheExpiry = Date.now() + CACHE_DURATION;
-    
-    return banks;
-  }
+  // Use mock banks data
+  console.log('Loading mock banks data');
+  const banks = getMockBanks();
+  
+  // Update cache
+  banksCache = banks;
+  banksCacheExpiry = Date.now() + CACHE_DURATION;
+  
+  return banks;
 };
 
 // Implement request queue to prevent multiple simultaneous requests
@@ -369,40 +324,6 @@ export const getBankNameByCode = (banks: Bank[], code: string): string => {
   return bank ? bank.name : '';
 };
 
-// Test function to verify Paystack Banks API is working
-export const testPaystackBanksApi = async () => {
-  console.log('Testing Paystack Banks API...');
-  console.log('API Key:', PAYSTACK_SECRET_KEY ? 'CONFIGURED' : 'NOT CONFIGURED');
-  console.log('URL:', `${PAYSTACK_API_URL}/bank`);
-
-  if (!PAYSTACK_SECRET_KEY) {
-    throw new Error('Paystack secret key not configured');
-  }
-
-  try {
-    const response = await axios.get(`${PAYSTACK_API_URL}/bank`, {
-      headers: {
-        'Authorization': `Bearer ${PAYSTACK_SECRET_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      timeout: 10000
-    });
-
-    console.log('Paystack Banks API Response:', response.data);
-    console.log('Response status:', response.status);
-    console.log('Number of banks:', response.data?.data?.length || 0);
-    
-    return response.data;
-  } catch (error: any) {
-    console.error('Paystack Banks API Error:', error);
-    console.error('Error details:', {
-      message: error.message,
-      response: error.response?.data,
-      status: error.response?.status
-    });
-    throw error;
-  }
-};
 
 // Test function to verify NUBAN API is working
 export const testNubanApi = async (accountNumber: string, bankCode: string) => {
