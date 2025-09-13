@@ -5,7 +5,7 @@ import { Check, Loader2 } from 'lucide-react';
 import BankSelector from './BankSelector';
 import { useBankVerification } from '../hooks/useBankVerification';
 import { useAccountContext } from '../context/AccountContext';
-import { getBankNameByCode, testNubanApi, testVerificationProcess, testPaystackBanksApi } from '../services/bankApi';
+import { getBankNameByCode, testNubanApi, testVerificationProcess } from '../services/bankApi';
 import { Bank } from '../types';
 import { fetchBanks } from '../services/bankApi';
 import { Button } from './ui/button';
@@ -158,29 +158,6 @@ const BankAccountForm: React.FC<BankAccountFormProps> = ({ onSuccess }) => {
     }
   };
 
-  const testPaystackBanks = async () => {
-    console.log('Testing Paystack Banks API...');
-    try {
-      const result = await testPaystackBanksApi();
-      console.log('Paystack Banks result:', result);
-      
-      const bankCount = result?.data?.length || 0;
-      const firstFewBanks = result?.data?.slice(0, 5).map((bank: any) => `${bank.name} (${bank.code})`).join(', ') || 'None';
-      
-      toast({
-        title: "Paystack Banks API Test",
-        description: `Found ${bankCount} banks\nFirst 5: ${firstFewBanks}\n\nFull Response: ${JSON.stringify(result, null, 2)}`,
-        variant: "default",
-      });
-    } catch (error: any) {
-      console.error('Paystack Banks test failed:', error);
-      toast({
-        title: "Paystack Banks Test Failed",
-        description: error.message || 'Unknown error',
-        variant: "destructive",
-      });
-    }
-  };
 
   
 //   const handleSubmit = (e: React.FormEvent) => {
@@ -325,59 +302,7 @@ const handleSubmit = (e: React.FormEvent) => {
             </div>
           )}
 
-          {/* Debug Info */}
-          {/* <div className="p-3 bg-gray-800 rounded-lg mb-4 text-xs">
-            <div className="text-gray-400">Debug Info:</div>
-            <div>Account Name State: "{accountName}"</div>
-            <div>Is Loading: {isLoading ? 'Yes' : 'No'}</div>
-            <div>Error: {error || 'None'}</div>
-            <div>Account Number: {accountNumber}</div>
-            <div>Bank Code: {selectedBankCode}</div>
-          </div> */}
 
-          {/* Debug Test Buttons */}
-          {/* <div className="space-y-2 mb-4">
-            <Button
-              type="button"
-              onClick={testPaystackBanks}
-              variant="outline"
-              className="w-full"
-            >
-              Test Paystack Banks API
-            </Button>
-          </div> */}
-          
-          {/* {accountNumber.length === 10 && selectedBankCode && (
-            <div className="space-y-2 mb-4">
-              <Button
-                type="button"
-                onClick={testDirectApi}
-                variant="outline"
-                className="w-full"
-              >
-                Test Direct NUBAN API
-              </Button>
-              <Button
-                type="button"
-                onClick={testVerification}
-                variant="outline"
-                className="w-full"
-              >
-                Test Verification Process
-              </Button>
-              <Button
-                type="button"
-                onClick={() => {
-                  console.log('Manual verification trigger...');
-                  verifyAccount(accountNumber, selectedBankCode);
-                }}
-                variant="outline"
-                className="w-full"
-              >
-                Trigger Manual Verification
-              </Button>
-            </div>
-          )} */}
           
           <Button
             type="submit"
