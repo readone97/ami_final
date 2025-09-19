@@ -10,6 +10,7 @@ import AmigoWalletProvider from "@/providers/AmigoWalletProvider"
 import { Providers } from "./provider";
 import { AccountProvider } from "@/context/AccountContext"
 import { Toaster } from "@/components/ui/toaster"
+import WhatsAppFloatingButton from "@/components/whatsapp-floating-button"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -32,6 +33,10 @@ export default function RootLayout({
           <ThemeProvider defaultTheme="dark" enableSystem>
           {children}
           <Toaster />
+          <WhatsAppFloatingButton 
+            whatsappUrl="https://chat.whatsapp.com/JxhRvJMPigM94lTSOv1SO0?mode=ems_wa_t"
+            description="If you have issues and difficulties, click to join the WhatsApp community"
+          />
         </ThemeProvider>
         </AmigoWalletProvider>
 

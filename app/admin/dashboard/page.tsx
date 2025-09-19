@@ -405,12 +405,12 @@ export default function AdminDashboardPage() {
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Merchant Balance</CardTitle>
-                <Wallet className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Total Volume in USD</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">₦2,500,000</div>
-                <p className="text-xs text-muted-foreground">Available</p>
+                <div className="text-2xl font-bold">$15,750.00</div>
+                <p className="text-xs text-muted-foreground">Total Volume</p>
               </CardContent>
             </Card>
           </div>
