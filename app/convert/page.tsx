@@ -100,6 +100,7 @@ export default function ConvertPage() {
   >([]);
   const [isFetchingTokens, setIsFetchingTokens] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isLimitExceeded, setIsLimitExceeded] = useState(false);
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
@@ -151,6 +152,29 @@ export default function ConvertPage() {
     }
   };
 
+  // Check if amount exceeds $100 USD limit
+  const checkConvertLimit = (amount: string, currency: string): boolean => {
+    if (!amount || isNaN(Number.parseFloat(amount))) return false;
+    
+    const amountValue = Number.parseFloat(amount);
+    const currencyLower = currency.toLowerCase();
+    
+    // For USDT and USDC, 1 token = 1 USD (approximately)
+    if (currencyLower === 'usdt' || currencyLower === 'usdc') {
+      return amountValue > 100;
+    }
+    
+    // For SOL, we need to check the USD value
+    if (currencyLower === 'sol') {
+      // Get SOL to USD rate from exchange rates
+      const solToUsd = exchangeRates.sol_ngn / (exchangeRates.usdt_ngn || 1550); // Approximate USD/NGN rate
+      const usdValue = amountValue * solToUsd;
+      return usdValue > 100;
+    }
+    
+    return false;
+  };
+
   useEffect(() => {
     async function fetchRates() {
       try {
@@ -198,6 +222,20 @@ export default function ConvertPage() {
       setConvertToAmount("0.00");
     }
   }, [convertAmount, convertFrom, convertTo, exchangeRates]);
+
+  // Check convert limit when amount or currency changes
+  useEffect(() => {
+    const limitExceeded = checkConvertLimit(convertAmount, convertFrom);
+    setIsLimitExceeded(limitExceeded);
+    
+    if (limitExceeded) {
+      toast({
+        title: "Convert Limit Exceeded",
+        description: "Maximum conversion limit is $100 USD equivalent. Please reduce the amount.",
+        variant: "destructive",
+      });
+    }
+  }, [convertAmount, convertFrom, exchangeRates, toast]);
 
   // Fetch SOL balance
   useEffect(() => {
@@ -347,6 +385,17 @@ export default function ConvertPage() {
       toast({
         title: "Invalid Amount",
         description: "Please enter a valid amount to convert.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check convert limit
+    if (isLimitExceeded) {
+      console.log('Convert limit exceeded, showing toast');
+      toast({
+        title: "Convert Limit Exceeded",
+        description: "Maximum conversion limit is $100 USD equivalent. Please reduce the amount.",
         variant: "destructive",
       });
       return;
@@ -526,7 +575,7 @@ export default function ConvertPage() {
                       <Input
                         type="number"
                         placeholder="0.00"
-                        className="w-full pr-16"
+                        className={`w-full pr-16 ${isLimitExceeded ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                         value={convertAmount}
                         onChange={(e) => setConvertAmount(e.target.value)}
                       />
@@ -750,11 +799,13 @@ export default function ConvertPage() {
               <Button
                 className="w-full"
                 size="lg"
-                disabled={isConverting || !bankAccount}
+                disabled={isConverting || !bankAccount || isLimitExceeded}
                 onClick={handleConvertCrypto}
               >
                 {isConverting ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : isLimitExceeded ? (
+                  "Amount Exceeds $100 Limit"
                 ) : bankAccount ? (
                   "Convert to Fiat"
                 ) : (
