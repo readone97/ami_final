@@ -32,6 +32,7 @@ export default function Home() {
 							</Link>
 						</div>
 						<div>
+							
 							<GetStartedButton />
 						</div>
 					</div>

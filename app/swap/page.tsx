@@ -11,7 +11,7 @@ import { useWallet } from "@solana/wallet-adapter-react"
 import { useToast } from "@/hooks/use-toast"
 import { Connection, VersionedTransaction } from "@solana/web3.js"
 import { getTokens, getQuote, getSwapTransaction, Token, QuoteResponse } from "@/lib/jupiter"
-import Image from "next/image"
+// Image import removed - using regular img tags for external logos
 import { supabase } from "@/lib/supabase/client"
 import { Sidebar, HamburgerMenu } from "@/components/sidebar"
 
@@ -411,7 +411,7 @@ export default function SwapPage() {
     <div className="flex min-h-screen bg-background text-foreground">
       <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
       
-      <div className="container flex flex-col py-8 lg:ml-0">
+      <div className="flex-1 py-6 md:py-8 lg:ml-0">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
             <HamburgerMenu onClick={toggleSidebar} />
@@ -471,12 +471,15 @@ export default function SwapPage() {
                 </div>
                 {fromToken && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Image
+                    <img
                       src={fromToken.logoURI}
                       alt={fromToken.symbol}
                       width={16}
                       height={16}
                       className="rounded-full"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none'
+                      }}
                     />
                     <span>{fromToken.symbol}</span>
                   </div>
@@ -527,12 +530,15 @@ export default function SwapPage() {
                 </div>
                 {toToken && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Image
+                    <img
                       src={toToken.logoURI}
                       alt={toToken.symbol}
                       width={16}
                       height={16}
                       className="rounded-full"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none'
+                      }}
                     />
                     <span>{toToken.symbol}</span>
                   </div>
