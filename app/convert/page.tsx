@@ -73,7 +73,7 @@ import { useToast } from "@/hooks/use-toast";
 
 
 const RPC_ENDPOINT =
-  "https://serene-wispy-model.solana-mainnet.quiknode.pro/2ebdf944147ac60d02e7030145216e4e1681dd2c/";
+  "https://late-few-resonance.solana-mainnet.quiknode.pro/5d429d69e9f9dd861ceecd843b57aa15a3441139/";
 
 // Correct mint addresses for popular tokens
 const TOKEN_MINTS = {
