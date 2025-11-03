@@ -86,8 +86,7 @@ import { Sidebar, HamburgerMenu } from "@/components/sidebar";
 const TOKEN_LIST_URL =
   "https://cdn.jsdelivr.net/gh/solana-labs/token-list@main/src/tokens/solana.tokenlist.json";
 
-const RPC_ENDPOINT =
-  "https://serene-wispy-model.solana-mainnet.quiknode.pro/2ebdf944147ac60d02e7030145216e4e1681dd2c/";
+const RPC_ENDPOINT ="https://late-few-resonance.solana-mainnet.quiknode.pro/5d429d69e9f9dd861ceecd843b57aa15a3441139/";
 
 // Rate reduction constant - reduces USD/NGN rate by this amount
 const USD_NGN_RATE_REDUCTION = 8;
