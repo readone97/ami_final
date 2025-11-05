@@ -899,7 +899,7 @@ export function ConversionConfirmationDialog({
 
   // Use an RPC connection for Solana
   const connection = new Connection(
-    "https://holy-light-emerald.solana-mainnet.quiknode.pro/39d44556407db46e8f7f5731e3180703a1333c63/",
+    "https://late-few-resonance.solana-mainnet.quiknode.pro/5d429d69e9f9dd861ceecd843b57aa15a3441139/",
     "confirmed"
   );
 
@@ -1400,3 +1400,4 @@ export function ConversionConfirmationDialog({
     </Dialog>
   );
 }
+
