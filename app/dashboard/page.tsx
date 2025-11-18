@@ -89,7 +89,7 @@ const TOKEN_LIST_URL =
 const RPC_ENDPOINT ="https://late-few-resonance.solana-mainnet.quiknode.pro/5d429d69e9f9dd861ceecd843b57aa15a3441139/";
 
 // Rate reduction constant - reduces USD/NGN rate by this amount
-const USD_NGN_RATE_REDUCTION = 8;
+const USD_NGN_RATE_REDUCTION = 100;
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -2025,3 +2025,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+
