@@ -222,66 +222,7 @@ export default function DashboardPage() {
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Mock data for tokens
-  const [tokens, setTokens] = useState([
-    {
-      name: "USDT",
-      symbol: "USDT",
-      balance: "1,250.00",
-      value: "$1,250.00",
-      change: "+2.5%",
-    },
-    {
-      name: "USDC",
-      symbol: "USDC",
-      balance: "750.50",
-      value: "$750.50",
-      change: "+1.2%",
-    },
-    {
-      name: "Solana",
-      symbol: "SOL",
-      balance: "5.75",
-      value: "$574.25",
-      change: "+4.8%",
-    },
-    {
-      name: "Bonk",
-      symbol: "BONK",
-      balance: "1,500,000",
-      value: "$150.00",
-      change: "-3.2%",
-    },
-    {
-      name: "Raydium",
-      symbol: "RAY",
-      balance: "100.00",
-      value: "$75.00",
-      change: "+1.5%",
-    },
-    {
-      name: "Serum",
-      symbol: "SRM",
-      balance: "200.00",
-      value: "$60.00",
-      change: "-0.8%",
-    },
-    {
-      name: "Mango",
-      symbol: "MNGO",
-      balance: "1,000.00",
-      value: "$50.00",
-      change: "+3.2%",
-    },
-    {
-      name: "Step Finance",
-      symbol: "STEP",
-      balance: "500.00",
-      value: "$25.00",
-      change: "+0.5%",
-    },
-  ]);
-
+ 
   const navItems = [
     { name: "Overview", path: "/dashboard" },
     { name: "Swap", path: "/swap" },
@@ -2025,4 +1966,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
 
