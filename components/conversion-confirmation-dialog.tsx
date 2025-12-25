@@ -71,7 +71,7 @@ export function ConversionConfirmationDialog({
     usdt: "Es9vMFrzaCERn6jQz6Lw4d1pA9wwrjz5v6Yk9k1d4wQh", // Mainnet USDT
   };
   const connection = new Connection(
-    "https://late-few-resonance.solana-mainnet.quiknode.pro/5d429d69e9f9dd861ceecd843b57aa15a3441139/"
+    "https://damp-light-vineyard.solana-mainnet.quiknode.pro/05770abd303efb946ff54e7f7d1b0d289652565d/"
   );
 
   const handleConfirm = async () => {
@@ -481,4 +481,5 @@ export function ConversionConfirmationDialog({
     );
   };
 }
+
 
