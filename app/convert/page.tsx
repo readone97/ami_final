@@ -72,8 +72,7 @@ import { useToast } from "@/hooks/use-toast";
 // const USD_NGN_RATE_REDUCTION = 8;
 
 
-const RPC_ENDPOINT =
-  "https://damp-light-vineyard.solana-mainnet.quiknode.pro/05770abd303efb946ff54e7f7d1b0d289652565d/";
+const RPC_ENDPOINT ="https://convincing-billowing-field.solana-mainnet.quiknode.pro/8a3b98de08f6626841436e1088ae6ce695da0b10/";
 
 // Correct mint addresses for popular tokens
 const TOKEN_MINTS = {
@@ -1400,5 +1399,6 @@ export function ConversionConfirmationDialog({
     </Dialog>
   );
 }
+
 
 
