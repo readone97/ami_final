@@ -898,7 +898,7 @@ export function ConversionConfirmationDialog({
 
   // Use an RPC connection for Solana
   const connection = new Connection(
-    "https://damp-light-vineyard.solana-mainnet.quiknode.pro/05770abd303efb946ff54e7f7d1b0d289652565d/",
+    "https://https://convincing-billowing-field.solana-mainnet.quiknode.pro/8a3b98de08f6626841436e1088ae6ce695da0b10/",
     "confirmed"
   );
 
@@ -1399,6 +1399,7 @@ export function ConversionConfirmationDialog({
     </Dialog>
   );
 }
+
 
 
 
