@@ -89,7 +89,7 @@ const TOKEN_LIST_URL =
 const RPC_ENDPOINT ="https://convincing-billowing-field.solana-mainnet.quiknode.pro/8a3b98de08f6626841436e1088ae6ce695da0b10/";
 
 // Rate reduction constant - reduces USD/NGN rate by this amount
-const USD_NGN_RATE_REDUCTION = 2;
+const USD_NGN_RATE_REDUCTION = 0;
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -1966,6 +1966,7 @@ export default function DashboardPage() {
     </div>
   );
 }
+
 
 
 
