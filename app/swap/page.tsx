@@ -287,7 +287,7 @@ export default function SwapPage() {
   
       // Use a single connection instance
       const connection = new Connection(
-        "https://convincing-billowing-field.solana-mainnet.quiknode.pro/8a3b98de08f6626841436e1088ae6ce695da0b10/", 
+        "https://still-powerful-sunset.solana-mainnet.quiknode.pro/1ada99006c240fec8004570aa96b418bb82cd2d6/", 
         "confirmed"
       );
   
