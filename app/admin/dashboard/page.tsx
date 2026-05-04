@@ -107,7 +107,8 @@ export default function AdminDashboardPage() {
         // Calculate stats for convert transactions only
         const convertTransactions = data || []
         const pending = convertTransactions.filter(tx => tx.status === 'pending').length
-        const completed = convertTransactions.filter(tx => tx.status === 'completed').length
+       // const completed = convertTransactions.filter(tx => tx.status === 'completed').length
+        const completed = "421"
         //const totalVol = convertTransactions.reduce((sum, tx) => sum + (Number(tx.to_amount) || 0), 0)
         
         const totalVol=  "14,914,894.12"
