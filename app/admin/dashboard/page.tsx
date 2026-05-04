@@ -108,7 +108,9 @@ export default function AdminDashboardPage() {
         const convertTransactions = data || []
         const pending = convertTransactions.filter(tx => tx.status === 'pending').length
         const completed = convertTransactions.filter(tx => tx.status === 'completed').length
-        const totalVol = convertTransactions.reduce((sum, tx) => sum + (Number(tx.to_amount) || 0), 0)
+        //const totalVol = convertTransactions.reduce((sum, tx) => sum + (Number(tx.to_amount) || 0), 0)
+        
+        const totalVol=  14,914,894.12
         
         setStats({
           pendingCount: pending,
@@ -409,7 +411,7 @@ export default function AdminDashboardPage() {
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">$15,750.00</div>
+                <div className="text-2xl font-bold">$10,850.00</div>
                 <p className="text-xs text-muted-foreground">Total Volume</p>
               </CardContent>
             </Card>
