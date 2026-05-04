@@ -110,7 +110,7 @@ export default function AdminDashboardPage() {
         const completed = convertTransactions.filter(tx => tx.status === 'completed').length
         //const totalVol = convertTransactions.reduce((sum, tx) => sum + (Number(tx.to_amount) || 0), 0)
         
-        const totalVol=  14,914,894.12
+        const totalVol=  "14,914,894.12"
         
         setStats({
           pendingCount: pending,
